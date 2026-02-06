@@ -42,6 +42,27 @@ TERRAIN_BASE_PROBS = {0: 0.7, 1: 0.4, 2: 0.2}
 TERRAIN_GEN_SCALE = 30
 
 FIRE_INTESITY = 1
+FIRE_DURATION = 7  # number of updates
+FIRST_FIRE_STATE = 3
+LAST_FIRE_STATE = 9
+
+COLOR_CODES = [
+    GREEN,
+    GREY,
+    BROWN,
+    FIRE1,
+    FIRE2,
+    FIRE3,
+    FIRE3,
+    FIRE3,
+    # FIRE3,
+    # FIRE3,
+    FIRE2,
+    FIRE1,
+    BLACK1,
+    BLACK2,
+    BLACK3,
+]
 
 
 def build_terrain_grid(
@@ -100,9 +121,9 @@ def ignition_prob(
     grid,
     pos_i,
     pos_j,
-    fire_states_range=[3, 9],
+    fire_states_range,
 ):
-    neighbor_factor = 0.2
+    neighbor_factor = 0.125
     count = 0
 
     for i in range(pos_i - 1, pos_i + 2):
@@ -127,7 +148,7 @@ def update(grid):
 
     for i in range(len(grid)):
         for j in range(len(grid[i])):
-            if grid[i][j] < 3:  # if the cell has no fire
+            if grid[i][j] < FIRST_FIRE_STATE:  # if the cell has no fire
 
                 # calculate ignition probability
                 ign_prob = ignition_prob(grid, i, j, fire_states_range=[3, 9])
@@ -135,38 +156,26 @@ def update(grid):
                     random.random()
                     < TERRAIN_BASE_PROBS[grid[i][j]] * ign_prob * FIRE_INTESITY
                 ):
-                    new_grid[i][j] = 3
+                    new_grid[i][j] = FIRST_FIRE_STATE
                 else:
                     new_grid[i][j] = grid[i][j]
-            elif grid[i][j] < 10:
+
+            # if in state of fire increase to next state of fire
+            elif grid[i][j] < LAST_FIRE_STATE:
                 new_grid[i][j] = grid[i][j] + 1
-                if new_grid[i][j] == 10:
-                    new_grid[i][j] += random.randint(0, 2)
+
+            # if in last state of fire increase to ash state and assign a random ash value
+            elif grid[i][j] == LAST_FIRE_STATE:
+                new_grid[i][j] += random.randint(
+                    LAST_FIRE_STATE + 0, LAST_FIRE_STATE + 2
+                )
             else:
                 new_grid[i][j] = grid[i][j]
     return new_grid
 
 
-def draw_grid(screen, grid):
+def draw_grid(screen, grid, color_codes):
     screen.fill(BLACK)
-
-    color_codes = [
-        GREEN,
-        GREY,
-        BROWN,
-        FIRE1,
-        FIRE2,
-        FIRE3,
-        FIRE3,
-        FIRE3,
-        # FIRE3,
-        # FIRE3,
-        FIRE2,
-        FIRE1,
-        BLACK1,
-        BLACK2,
-        BLACK3,
-    ]
 
     for i in range(len(grid)):
         for j in range(len(grid[i])):
@@ -196,18 +205,6 @@ def main():
         H_CELL_COUNT, V_CELL_COUNT, terrain_types=3, gen_scale=30, seed=420
     )
 
-    # initialize a fire in the middle
-    # grid[V_CELL_COUNT // 2][H_CELL_COUNT // 2] = 3
-
-    # wind = pygame.Vector2()
-
-    # initial simulation
-    # 1. create grid - DONE
-    # 2. initialize with random cell types (grass, dirt, concrete) - DONE
-    # 3. initialize wind (random direction and magnitude for now)
-    # 4. click to start a fire
-    # 5. see how fire develops
-
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -235,7 +232,7 @@ def main():
                         seed=69,
                     )
 
-        draw_grid(screen, grid)
+        draw_grid(screen, grid, color_codes=COLOR_CODES)
 
         if not paused:
             # if frame_count % STEP == 0:
