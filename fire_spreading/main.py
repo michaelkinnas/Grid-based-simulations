@@ -11,7 +11,7 @@ INSTRUCTIONS:
 WIDTH = 1600
 HEIGHT = 1200
 CELL_SIZE = 5
-STEPS_EVERY_SECOND = 60
+STEPS_EVERY_SECOND = 30
 FPS = 60
 
 
@@ -37,54 +37,73 @@ BLACK2 = (20, 20, 20)
 BLACK3 = (40, 40, 40)
 
 # FLAMABILITY
-BASE_PROBS = {0: 0.6, 1: 0.025, 2: 0.005, 3: 0.5, 4: 0.5, 5: 0.5}
+TERRAIN_BASE_PROBS = {0: 0.7, 1: 0.4, 2: 0.2}
 
-ADDED_PROB = 0.05
 TERRAIN_GEN_SCALE = 30
 
+FIRE_INTESITY = 1
 
-def randomize_positions(grid, terrain_types=3):
-    # grid = [[0 for _ in range(H_CELL_COUNT)] for _ in range(V_CELL_COUNT)]
-    # valid_values = [x for x in range(choices)]
-    for i in range(len(grid)):
-        for j in range(len(grid[i])):
-            # grid[i][j] = random.choice(valid_values)
-            grid[i][j] = pnoise2(i / TERRAIN_GEN_SCALE, j / TERRAIN_GEN_SCALE)
 
-    # print(grid)
-    # Find global min/max
+def build_terrain_grid(
+    h_cell_count, v_cell_count, terrain_types=3, gen_scale=TERRAIN_GEN_SCALE, seed=69
+):
+    grid = [[0 for _ in range(h_cell_count)] for _ in range(v_cell_count)]
+
+    for i in range(v_cell_count):
+        for j in range(h_cell_count):
+            grid[i][j] = pnoise2(i / gen_scale, j / gen_scale, base=seed)
+
     min_val = min(min(row) for row in grid)
     max_val = max(max(row) for row in grid)
 
     # Normalize in-place
-    for i in range(len(grid)):
-        for j in range(len(grid[i])):
+    for i in range(v_cell_count):
+        for j in range(h_cell_count):
             grid[i][j] = (grid[i][j] - min_val) / (max_val - min_val)
 
     # terrain_types = 3
-
     values = sorted(v for row in grid for v in row)
 
     thresholds = [
         values[int(len(values) * k / terrain_types)] for k in range(1, terrain_types)
     ]
 
-    for i in range(len(grid)):
-        for j in range(len(grid[i])):
+    for i in range(v_cell_count):
+        for j in range(h_cell_count):
             v = grid[i][j]
-
             t = 0
             for th in thresholds:
                 if v >= th:
                     t += 1
-
             grid[i][j] = t
+    return grid
 
 
-def count_neighbors(grid, pos_i, pos_j):
+# def count_neighbors(
+#     grid, pos_i, pos_j, lower_ignition_threshold=3, upper_ignition_threshold=9
+# ):
+#     count = 0
+#     for i in range(pos_i - 1, pos_i + 2):
+#         for j in range(pos_j - 1, pos_j + 2):
+#             if i == pos_i and j == pos_j:
+#                 continue
+#             # count number and intensity of fire
+#             value = grid[(i + V_CELL_COUNT) % V_CELL_COUNT][
+#                 (j + H_CELL_COUNT) % H_CELL_COUNT
+#             ]
+#             if value >= lower_ignition_threshold and value <= upper_ignition_threshold:
+#                 count += value
+#     return count
+
+
+def ignition_prob(
+    grid,
+    pos_i,
+    pos_j,
+    fire_states_range=[3, 9],
+):
+    neighbor_factor = 0.2
     count = 0
-
-    fires = [3, 4, 5]
 
     for i in range(pos_i - 1, pos_i + 2):
         for j in range(pos_j - 1, pos_j + 2):
@@ -94,13 +113,12 @@ def count_neighbors(grid, pos_i, pos_j):
             value = grid[(i + V_CELL_COUNT) % V_CELL_COUNT][
                 (j + H_CELL_COUNT) % H_CELL_COUNT
             ]
-            if value > 2 and value < 6:
-                count += value - 2
+            if value >= fire_states_range[0] and value <= fire_states_range[1]:
+                # neighbor_factor += value - lower_ignition_threshold + 1
+                count += 1
 
-    # count -= grid[pos_i][pos_j]
-    # if count != 0:
-    #     print(count)
-    return count
+    prob = 1 - (1 - neighbor_factor) ** count
+    return prob
 
 
 # fire spreading logic
@@ -110,9 +128,12 @@ def update(grid):
     for i in range(len(grid)):
         for j in range(len(grid[i])):
             if grid[i][j] < 3:  # if the cell has no fire
-                num_fires = count_neighbors(grid, i, j)  # cound neighboring fires
-                if num_fires > 0 and random.random() < BASE_PROBS[grid[i][j]] + (
-                    num_fires * ADDED_PROB
+
+                # calculate ignition probability
+                ign_prob = ignition_prob(grid, i, j, fire_states_range=[3, 9])
+                if (
+                    random.random()
+                    < TERRAIN_BASE_PROBS[grid[i][j]] * ign_prob * FIRE_INTESITY
                 ):
                     new_grid[i][j] = 3
                 else:
@@ -138,25 +159,14 @@ def draw_grid(screen, grid):
         FIRE3,
         FIRE3,
         FIRE3,
-        FIRE3,
-        FIRE3,
+        # FIRE3,
+        # FIRE3,
+        FIRE2,
+        FIRE1,
         BLACK1,
         BLACK2,
         BLACK3,
     ]
-
-    # for i in range(len(grid)):
-    #     for j in range(len(grid[i])):
-    #         pygame.draw.rect(
-    #             surface=screen,
-    #             color=color_codes[grid[i][j]],
-    #             rect=pygame.Rect(
-    #                 j * CELL_SIZE + 1,
-    #                 i * CELL_SIZE + 1,
-    #                 CELL_SIZE - 2,
-    #                 CELL_SIZE - 2,
-    #             ),
-    #         )
 
     for i in range(len(grid)):
         for j in range(len(grid[i])):
@@ -178,13 +188,16 @@ def main():
     pygame.display.set_caption("Conway's Game of Life")
     clock = pygame.time.Clock()
 
+    paused = False
     frame_count = 0
 
-    grid = [[0 for _ in range(H_CELL_COUNT)] for _ in range(V_CELL_COUNT)]
-    randomize_positions(grid, 3)
+    # grid = [[0 for _ in range(H_CELL_COUNT)] for _ in range(V_CELL_COUNT)]
+    grid = build_terrain_grid(
+        H_CELL_COUNT, V_CELL_COUNT, terrain_types=3, gen_scale=30, seed=420
+    )
 
     # initialize a fire in the middle
-    grid[V_CELL_COUNT // 2][H_CELL_COUNT // 2] = 3
+    # grid[V_CELL_COUNT // 2][H_CELL_COUNT // 2] = 3
 
     # wind = pygame.Vector2()
 
@@ -201,33 +214,35 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-            # if event.type == pygame.MOUSEBUTTONDOWN:
-            #     if pygame.mouse.get_pressed()[0]:
-            #         mouse_x, mouse_y = pygame.mouse.get_pos()
-            #         grid[mouse_y // CELL_SIZE][mouse_x // CELL_SIZE] = 1
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pygame.mouse.get_pressed()[0]:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    grid[mouse_y // CELL_SIZE][mouse_x // CELL_SIZE] = 3
 
-            #     if pygame.mouse.get_pressed()[2]:
-            #         mouse_x, mouse_y = pygame.mouse.get_pos()
-            #         grid[mouse_y // CELL_SIZE][mouse_x // CELL_SIZE] = 0
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    if paused:
+                        paused = False
+                    else:
+                        paused = True
 
-            # if event.type == pygame.KEYDOWN:
-            #     if event.key == pygame.K_SPACE:
-            #         if paused:
-            #             paused = False
-            #         else:
-            #             paused = True
-
-            #     if event.key == pygame.K_r:
-            #         grid = randomize_positions(grid)
+                if event.key == pygame.K_r:
+                    grid = build_terrain_grid(
+                        H_CELL_COUNT,
+                        V_CELL_COUNT,
+                        terrain_types=3,
+                        gen_scale=30,
+                        seed=69,
+                    )
 
         draw_grid(screen, grid)
 
-        # if not paused:
-        #     if frame_count % STEP == 0:
-        #         grid = update_generation(grid)
+        if not paused:
+            # if frame_count % STEP == 0:
+            #     grid = update_generation(grid)
 
-        if frame_count % STEP == 0:
-            grid = update(grid)
+            if frame_count % STEP == 0:
+                grid = update(grid)
 
         pygame.display.flip()
         clock.tick(FPS)
