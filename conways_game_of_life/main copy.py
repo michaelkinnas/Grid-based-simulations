@@ -2,10 +2,6 @@ import pygame
 import sys
 import random
 
-"""
-INSTRUCTIONS:
-
-"""
 
 WIDTH = 1600
 HEIGHT = 1200
@@ -65,20 +61,30 @@ def update_generation(grid):
 def draw_grid(screen, grid):
     screen.fill(BLACK)
 
-    color_codes = [GREY, WHITE]
-
     for i in range(len(grid)):
         for j in range(len(grid[i])):
-            pygame.draw.rect(
-                surface=screen,
-                color=color_codes[grid[i][j]],
-                rect=pygame.Rect(
-                    j * CELL_SIZE + 1,
-                    i * CELL_SIZE + 1,
-                    CELL_SIZE - 2,
-                    CELL_SIZE - 2,
-                ),
-            )
+            if grid[i][j] == 1:
+                pygame.draw.rect(
+                    surface=screen,
+                    color=WHITE,
+                    rect=pygame.Rect(
+                        j * CELL_SIZE + 1,
+                        i * CELL_SIZE + 1,
+                        CELL_SIZE - 2,
+                        CELL_SIZE - 2,
+                    ),
+                )
+            else:
+                pygame.draw.rect(
+                    surface=screen,
+                    color=GREY,
+                    rect=pygame.Rect(
+                        j * CELL_SIZE + 1,
+                        i * CELL_SIZE + 1,
+                        CELL_SIZE - 2,
+                        CELL_SIZE - 2,
+                    ),
+                )
 
 
 def main():
