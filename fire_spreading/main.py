@@ -8,12 +8,11 @@ from noise import pnoise2
 INSTRUCTIONS:
 
 """
-
-WIDTH = 1600
-HEIGHT = 1200
+WIDTH = int(1920 * 0.75)
+HEIGHT = int(1080 * 0.75)
 CELL_SIZE = 5
 STEPS_EVERY_SECOND = 30
-FPS = 60
+FPS = 30
 
 
 STEP = FPS / STEPS_EVERY_SECOND
@@ -130,6 +129,15 @@ def ignition_prob(
     
     return NEIGHBOR_FACTORS[count]
 
+def ignition_prob2(state_grid, prob_grid, pos_i, pos_j, neighbor_factor):
+    for i in range(max(pos_i - 1, 0), min(pos_i + 2, V_CELL_COUNT)):
+        for j in range(max(pos_j - 1, 0), min(pos_j + 2, H_CELL_COUNT)):
+            if i == pos_i and j == pos_j:
+                continue
+            if state_grid[i][j] == 0:
+                prob_grid[i][j] += neighbor_factor
+
+
 
 # fire spreading logic
 def update(terrain_grid, state_grid, fire_age_grid, max_fire_age=10):
@@ -145,7 +153,7 @@ def update(terrain_grid, state_grid, fire_age_grid, max_fire_age=10):
         for j in range(H_CELL_COUNT):
             if state_grid[i][j] == 0:  # if the cell has no fire
                 # calculate ignition probability
-                ign_prob = ignition_prob(state_grid, i, j)
+                ign_prob = ignition_prob(state_grid, i, j, )
                 if ign_prob > 0 and (random.random() < TERRAIN_BASE_PROBS[terrain_grid[i][j]] * ign_prob * FIRE_INTESITY):
                     new_state_grid[i][j] = 1
 
@@ -159,6 +167,35 @@ def update(terrain_grid, state_grid, fire_age_grid, max_fire_age=10):
                     new_age_grid[i][j] += 1
 
     return new_state_grid, new_age_grid, new_terrain_grid
+
+def update2(terrain_grid, state_grid, fire_age_grid, max_fire_age=10):
+    new_state_grid = [row.copy() for row in state_grid]
+    new_age_grid = [row.copy() for row in fire_age_grid]
+    new_terrain_grid = [row.copy() for row in terrain_grid]
+    prob_grid = [[0 for _ in range(H_CELL_COUNT)] for _ in range(V_CELL_COUNT)]
+
+    for i in range(V_CELL_COUNT):
+        for j in range(H_CELL_COUNT):
+            # if burning
+            if state_grid[i][j] == 1:
+                ignition_prob2(state_grid, prob_grid, i, j, NEIGHBOR_FACTOR)
+                # check weather last age of fire and transition to burned
+                if fire_age_grid[i][j] > max_fire_age:
+                    new_state_grid[i][j] = 2
+                    new_terrain_grid[i][j] = random.choice([3,4,5])
+                else:
+                    new_age_grid[i][j] += 1
+
+                # calc ignition prob for neighbors
+
+    
+    for i in range(V_CELL_COUNT):
+        for j in range(H_CELL_COUNT):
+            if prob_grid[i][j] > 0 and (random.random() < TERRAIN_BASE_PROBS[terrain_grid[i][j]] * prob_grid[i][j] * FIRE_INTESITY):
+                    new_state_grid[i][j] = 1
+
+    return new_state_grid, new_age_grid, new_terrain_grid
+
 
 
 def draw_grid(
@@ -200,7 +237,7 @@ def main():
     frame_count = 0
 
     terrain = build_terrain_grid(
-        H_CELL_COUNT, V_CELL_COUNT, terrain_types=3, gen_scale=30, seed=420
+        H_CELL_COUNT, V_CELL_COUNT, terrain_types=3, gen_scale=30, seed=random.randint(-1000, 1000)
     )
 
     # 0 not burning, 1 burning, 2 burned
@@ -239,7 +276,7 @@ def main():
                         V_CELL_COUNT,
                         terrain_types=3,
                         gen_scale=30,
-                        seed=69,
+                        seed=random.randint(-1000, 1000),
                     )
         # if frame_count % STEP == 0:
         draw_grid(
@@ -253,7 +290,7 @@ def main():
 
         if not paused:
             if frame_count % STEP == 0:
-                cell_state, fire_age, terrain = update(
+                cell_state, fire_age, terrain = update2(
                     terrain_grid=terrain,
                     state_grid=cell_state,
                     fire_age_grid=fire_age,
@@ -266,6 +303,8 @@ def main():
 
         frame_count += 1
         frame_count %= FPS
+
+        pygame.display.set_caption(f"Fire simulation - FPS {clock.get_fps()}")
 
 
 if __name__ == "__main__":
