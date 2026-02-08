@@ -100,23 +100,6 @@ def build_terrain_grid(
     return grid
 
 
-# def count_neighbors(
-#     grid, pos_i, pos_j, lower_ignition_threshold=3, upper_ignition_threshold=9
-# ):
-#     count = 0
-#     for i in range(pos_i - 1, pos_i + 2):
-#         for j in range(pos_j - 1, pos_j + 2):
-#             if i == pos_i and j == pos_j:
-#                 continue
-#             # count number and intensity of fire
-#             value = grid[(i + V_CELL_COUNT) % V_CELL_COUNT][
-#                 (j + H_CELL_COUNT) % H_CELL_COUNT
-#             ]
-#             if value >= lower_ignition_threshold and value <= upper_ignition_threshold:
-#                 count += value
-#     return count
-
-
 def ignition_prob(
     grid,
     pos_i,
