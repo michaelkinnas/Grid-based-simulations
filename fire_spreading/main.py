@@ -8,8 +8,8 @@ from noise import pnoise2
 INSTRUCTIONS:
 
 """
-WIDTH = int(1920 * 0.75)
-HEIGHT = int(1080 * 0.75)
+WIDTH = int(1920 * 1)
+HEIGHT = int(1080 * 1)
 CELL_SIZE = 5
 STEPS_EVERY_SECOND = 30
 FPS = 30
@@ -74,7 +74,11 @@ color_codes_fire_states = (
     FIRE1,
 )
 
-NEIGHBOR_FACTOR = 0.125
+# NEIGHBOR_FACTOR = 0.125
+NEIGHBOR_FACTOR = 0.1
+# NEIGHBOR_FACTOR = 0.08
+
+
 NEIGHBOR_FACTORS = [x * NEIGHBOR_FACTOR for x in range(9)]
 
 def build_terrain_grid(
@@ -304,7 +308,7 @@ def main():
         frame_count += 1
         frame_count %= FPS
 
-        pygame.display.set_caption(f"Fire simulation - FPS {clock.get_fps()}")
+        pygame.display.set_caption(f"Fire simulation - FPS {clock.get_fps():.2f}")
 
 
 if __name__ == "__main__":
